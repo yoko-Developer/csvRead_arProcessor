@@ -22,7 +22,7 @@ MASTER_DATA_DIR = os.path.join(APP_ROOT_DIR, 'master_data')
 MERGED_OUTPUT_BASE_DIR = os.path.join(APP_ROOT_DIR, 'merged_output') 
 
 
-# ★★★ FINAL_POSTGRE_COLUMNS をお客様が提示した売掛金用のリストに完全に一致させる！
+# ★★★ FINAL_POSTGRE_COLUMNS を売掛金用のリストに完全に一致させる！
 FINAL_POSTGRE_COLUMNS = [
     'ocr_result_id',
     'page_no',
@@ -79,7 +79,8 @@ FINAL_POSTGRE_COLUMNS = [
     'coord_x_description',      
     'coord_y_description',      
     'coord_h_description',      
-    'coord_w_description',      
+    'coord_w_description',
+    'row_no',      
     'insertdatetime',           
     'updatedatetime',           
     'updateuser'                         
@@ -218,7 +219,7 @@ def process_universal_csv(input_filepath, processed_output_base_dir, input_base_
     # 「〃」マークのみをffillで埋め、空文字列はそのまま維持
     df_data_rows = df_data_rows.ffill() 
     df_data_rows = df_data_rows.fillna('') 
-    print(f"  ℹ️ 「〃」マークを直上データで埋め、元々ブランクだった箇所は維持しました。")
+    print(f"  ℹ️ 「〃」を直上データで埋め、元々ブランクだった箇所は維持しました。")
 
     # 合計行の削除ロジック
     keywords_to_delete = ["合計", "小計", "計", "手持手形計", "割引手形計", "その他計"] 
@@ -295,9 +296,11 @@ def process_universal_csv(input_filepath, processed_output_base_dir, input_base_
 
 
     # --- Excel関数相当のロジックを適用（派生カラムの生成） ---
-    df_processed['registration_number_original'] = df_processed['registration_number'].fillna('').astype(str) # registration_number_original を追加	
-    df_processed['registration_number'] = df_processed['registration_number'].fillna('').astype(str)
-    df_processed['registration_number'] = df_processed['registration_number'].fillna('').astype(str)
+    
+    # registration_number_original, registration_number
+    # registration_number は元データに直接対応するカラムがないため、ここでは空のまま。
+    df_processed['registration_number_original'] = df_processed['registration_number'].copy() # registration_number_original を追加
+    df_processed['registration_number'] = df_processed['registration_number'].copy() # ブランクのまま維持
 
     # calculation_name_original, calculation_name
     # calculation_name は ACCOUNTS_RECEIVABLE_MAPPING_DICT で '科目' からマッピング済み
@@ -310,12 +313,19 @@ def process_universal_csv(input_filepath, processed_output_base_dir, input_base_
     # partner_location_original, partner_location
     # partner_location は ACCOUNTS_RECEIVABLE_MAPPING_DICT で '相手先所在地(住所)' からマッピング済み
     df_processed['partner_location_original'] = df_processed['partner_location'].copy()
+    
+    # partner_location_prefecture, partner_location_city, partner_location_town, partner_location_block
+    # これらは元データに直接対応するカラムがないため、デフォルトで空のままとなる
 
-    # partner_com_code の処理 (maker_com_code に該当)
+    # partner_com_code の処理
     df_processed['partner_com_code'] = df_processed['partner_name'].apply(get_partner_com_code_for_name)
+    # partner_com_code_status_id, partner_comcd_relation_source_type_id, partner_exist_comcd_relation_history_id
+    # これらは元データに直接対応カラムがないため、デフォルトで空のままとなる
+
+    # issue_date_original, issue_date, due_date_original, due_date
+    # これらのカラムは元データに直接対応するカラムがないため、デフォルトで空のままとなる
 
     # balance_original, balance
-    # balance は ACCOUNTS_RECEIVABLE_MAPPING_DICT で '期末現在高' からマッピング済み
     def clean_balance_no_comma(value): 
         try:
             cleaned_value = str(value).replace(',', '').strip()
@@ -329,7 +339,11 @@ def process_universal_csv(input_filepath, processed_output_base_dir, input_base_
     df_processed['balance'] = df_processed['balance'].apply(clean_balance_no_comma)
     df_processed['balance_original'] = df_processed['balance'].copy() 
 
-    # description は ACCOUNTS_RECEIVABLE_MAPPING_DICT で '摘要' からマッピング済み
+    # paying_bank_name_original, paying_bank_name, paying_bank_branch_name_original, paying_bank_branch_name
+    # discount_bank_name_original, discount_bank_name
+    # これらのカラムは元データに直接対応するカラムがないため、デフォルトで空のままとなる
+
+    # description_original, description
     df_processed['description_original'] = df_processed['description'].copy() 
     
     # ★★★ 新規追加カラムの固定値設定 ★★★
@@ -339,7 +353,6 @@ def process_universal_csv(input_filepath, processed_output_base_dir, input_base_
     df_processed['conf_partner_location'] = '100'
     df_processed['conf_balance'] = '100'
     df_processed['conf_description'] = '100'
-
     df_processed['coord_x_registration_number'] = '3000'
     df_processed['coord_y_registration_number'] = '3000'
     df_processed['coord_h_registration_number'] = '3000'
@@ -365,9 +378,11 @@ def process_universal_csv(input_filepath, processed_output_base_dir, input_base_
     df_processed['coord_h_description'] = '3000'
     df_processed['coord_w_description'] = '3000'
 
-    df_processed['insertdatetime'] = ''
-    df_processed['updatedatetime'] = ''
-    df_processed['updateuser'] = 'testuser'
+    # row_no を追加し、ファイルごとに1から始まる連番を設定
+    df_processed['row_no'] = range(1, num_rows_to_process + 1) # ★★★ row_no の生成ロジック ★★★
+    df_processed['insertdatetime'] = '' 
+    df_processed['updatedatetime'] = '' 
+    df_processed['updateuser'] = 'testuser' 
     
     # --- 保存処理 ---
     processed_output_filename = os.path.basename(input_filepath).replace('.csv', '_processed.csv')
