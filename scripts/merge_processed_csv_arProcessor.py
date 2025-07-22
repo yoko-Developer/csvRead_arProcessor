@@ -72,7 +72,8 @@ FINAL_POSTGRE_COLUMNS = [
     'coord_x_description',      
     'coord_y_description',      
     'coord_h_description',      
-    'coord_w_description',      
+    'coord_w_description',
+    'row_no',   
     'insertdatetime',           
     'updatedatetime',           
     'updateuser'                
