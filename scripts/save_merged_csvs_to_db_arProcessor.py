@@ -49,7 +49,7 @@ def save_csvs_to_postgres():
             print(f"  ⏳ インポート中: {filename}")
             with open(csv_file, 'r', encoding='utf-8-sig') as f:
                 cur.copy_expert(
-                    sql="COPY notes_receivable FROM STDIN WITH CSV",
+                    sql="COPY accounts_receivable FROM STDIN WITH CSV",
                     file=f
                 )
             conn.commit()
